@@ -29,6 +29,11 @@ define([
     'use strict';
 
     /**
+     * @ngdoc object
+     * @name w20UI
+     *
+     * @description
+     *
      * This module manages the UI. It provides Bootstrap 3 and UI-Bootstrap libraries. It is automatically loaded.
      *
      * Configuration
@@ -40,9 +45,6 @@ define([
      * ----------------------------
      *
      * This module has no fragment definition section.
-     *
-     * @name w20UI
-     * @module
      */
     var w20UI = angular.module('w20UI', ['ui.bootstrap', 'w20CoreEnv', 'w20CoreSecurity', 'w20CoreCulture']),
         config = module && module.config() || {},
@@ -589,7 +591,7 @@ define([
                     return $.trim(arg.replace(/^(?!at).*$/m, '')).replace(/\n/g, '<br/>');
                 }
 
-                $rootScope.$on('w20.core.application.error-occured', function (event, errors) {
+                $rootScope.$on('w20.core.application.error-occurred', function (event, errors) {
                     $('#w20ErrorReportMessage').html(errors[0].exception.message);
                     $('#w20ErrorReportStack').html(formatStack(errors[0].exception.stack));
                     $('#w20ErrorReport').modal('show');

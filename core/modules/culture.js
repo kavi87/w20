@@ -175,8 +175,7 @@ define([
      * can format values in any culture supported by the application, without switching the active one. This module
      * handles text internationalization, date and time formatting, currency formatting, number formatting.
      *
-     * Configuration
-     * -------------
+     * # Configuration
      *
      *      "culture" : {
      *          // Array of available cultures in the application
@@ -186,8 +185,7 @@ define([
      *          "default" : "ietf-code-of-default-language"
      *      }
      *
-     * Fragment definition sections
-     * ----------------------------
+     * # Fragment definition
      *
      * The fragment "i18n" section allows to declare culture localization bundles. All fragments "i18n" sections are merged
      * on application initialization. Fragment "i18n" definitions cannot be overriden in application configuration. Bundles
@@ -203,8 +201,7 @@ define([
      *          ...
      *      }
      *
-     * Available IETF cultures codes
-     * ------------------------
+     * # Available IETF cultures codes
      *
      * af-ZA, af, am-ET, am, ar-AE, ar-BH, ar-DZ, ar-EG, ar-IQ, ar-JO, ar-KW, ar-LB, ar-LY, ar-MA, ar-OM, ar-QA,
      * ar-SA, ar-SY, ar-TN, ar-YE, ar, arn-CL, arn, as-IN, as, az-Cyrl-AZ, az-Cyrl, az-Latn-AZ, az-Latn, az, ba-RU,

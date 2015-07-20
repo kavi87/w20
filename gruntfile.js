@@ -16,6 +16,7 @@ module.exports = function (grunt) {
         pkg: grunt.file.readJSON('package.json'),
         clean: [
             'bower_components/**',
+            'docs/**',
             'dist/**',
             'coverage/**'
         ],
@@ -55,6 +56,18 @@ module.exports = function (grunt) {
             options: {
                 force: true
             }
+        },
+        ngdocs: {
+            core: {
+                src: ['core/modules/**/*.js'],
+                title: 'Core',
+                api: true
+            },
+            ui: {
+                src: ['ui/modules/**/*.js'],
+                title: 'UI',
+                api: true
+            }
         }
     });
 
@@ -62,6 +75,7 @@ module.exports = function (grunt) {
     grunt.loadNpmTasks('grunt-contrib-clean');
     grunt.loadNpmTasks('grunt-contrib-concat');
     grunt.loadNpmTasks('grunt-contrib-uglify');
+    grunt.loadNpmTasks('grunt-ngdocs');
     grunt.loadNpmTasks('grunt-karma');
     grunt.loadNpmTasks('grunt-coveralls');
     grunt.loadNpmTasks('grunt-bower-task');
