@@ -68,6 +68,15 @@ module.exports = function (grunt) {
                 title: 'UI',
                 api: true
             }
+        },
+        connect: {
+            docs: {
+                options: {
+                    port: 9000,
+                    base: 'docs',
+                    keepalive: true
+                }
+            }
         }
     });
 
@@ -79,6 +88,9 @@ module.exports = function (grunt) {
     grunt.loadNpmTasks('grunt-karma');
     grunt.loadNpmTasks('grunt-coveralls');
     grunt.loadNpmTasks('grunt-bower-task');
+    grunt.loadNpmTasks('grunt-contrib-connect');
 
-    grunt.registerTask('default', ['jshint', 'bower', 'karma:test', 'coveralls']);
+    grunt.registerTask('docs', ['ngdocs', 'connect:docs']);
+
+    grunt.registerTask('default', ['jshint', 'bower', 'karma:test', 'coveralls', 'ngdocs']);
 };
