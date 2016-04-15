@@ -1,0 +1,36 @@
+{
+    "id": "myProject",
+    "name": "W20 myProject fragment",
+
+    "security": {
+        "provider": "SimpleAuthentication",
+        "config": {
+            "clearCredentials": true,
+            "authentication": "/authentication",
+            "authorizations": "/authorizations"
+        }
+    },
+
+    "modules": {
+        "content": {
+            "path": "{myProject}/modules/content",
+            "autoload": true
+        },
+        "style": {
+            "path": "[css]!{myProject}/style/style.css",
+            "autoload": true
+        }
+    },
+
+    "i18n": {
+        "en": ["{myProject}/i18n/messages-en.json"],
+        "fr": ["{myProject}/i18n/messages-fr.json"]
+    },
+
+    "routes": {
+        "content":{
+            "templateUrl":"{myProject}/views/content.html",
+            "controller":"ContentController"
+        }
+    }
+}

@@ -1,0 +1,11 @@
+{
+    "name": "myProject",
+    "version": "0.1.0",
+    "dependencies": {
+        "w20-business-theme": "#master",
+        "w20": "#master"
+    },
+    "resolutions": {
+        "w20": "#master"
+    }
+}
