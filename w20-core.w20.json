@@ -230,23 +230,22 @@
         },
 
         "paths": {
-            "{lodash}": "${components-path:bower_components}/lodash/dist",
-            "{globalize}": "${components-path:bower_components}/globalize/lib",
-            "{angular}": "${components-path:bower_components}/angular",
-            "{angular-resource}": "${components-path:bower_components}/angular-resource",
-            "{angular-route}": "${components-path:bower_components}/angular-route",
-            "{angular-sanitize}": "${components-path:bower_components}/angular-sanitize",
-            "{tv4}": "${components-path:bower_components}/tv4",
-            "{requirejs-text}": "${components-path:bower_components}/requirejs-text",
-            "{requirejs}": "${components-path:bower_components}/requirejs",
-            "{require-css}": "${components-path:bower_components}/require-css",
-            "{uri-templates}": "${components-path:bower_components}/uri-templates",
+            "{lodash}/*": "${components-path:bower_components}/lodash/dist/*",
+            "{globalize}/*": "${components-path:bower_components}/globalize/lib/*",
+            "{angular}/*": "${components-path:bower_components}/angular/*",
+            "{angular-resource}/*": "${components-path:bower_components}/angular-resource/*",
+            "{angular-route}/*": "${components-path:bower_components}/angular-route/*",
+            "{angular-sanitize}/*": "${components-path:bower_components}/angular-sanitize/*",
+            "{tv4}/*": "${components-path:bower_components}/tv4/*",
+            "{requirejs-text}/*": "${components-path:bower_components}/requirejs-text/*",
+            "{requirejs}/*": "${components-path:bower_components}/requirejs/*",
+            "{require-css}/*": "${components-path:bower_components}/require-css/*",
+            "{uri-templates}/*": "${components-path:bower_components}/uri-templates/*",
             "jquery": "${components-path:bower_components}/jquery/dist/jquery",
-            "{jgrowl}": "${components-path:bower_components}/jgrowl",
-            "w20": "empty:"
+            "{jgrowl}/*": "${components-path:bower_components}/jgrowl/*"
         },
 
-        "shim": {
+        "meta": {
             "{angular-resource}/angular-resource": [ "{angular}/angular" ],
             "{angular-route}/angular-route": [ "{angular}/angular" ],
             "{angular-sanitize}/angular-sanitize": [ "{angular}/angular" ],

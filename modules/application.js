@@ -422,7 +422,13 @@ define([
                     };
 
                 _.each(modules, function (module) {
-                    angularModules = angularModules.concat(module.angularModules || []);
+                    if (module && module.angularModules) {
+                        if (module.angularModules.name) {
+                            angularModules = angularModules.concat(module.angularModules.name);
+                        } else if (module.angularModules instanceof Array || typeof module.angularModules === 'string') {
+                            angularModules = angularModules.concat(module.angularModules);
+                        }
+                    }
                 });
 
                 angular.element(window.document).ready(bootstrap);

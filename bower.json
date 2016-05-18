@@ -16,6 +16,11 @@
     "test-main.js"
   ],
   "dependencies": {
+    "system.js": "~0.19.27",
+    "system.js-plugin-text": "https://github.com/systemjs/plugin-text.git",
+    "system.js-plugin-css": "https://github.com/systemjs/plugin-css.git",
+    "system.js-plugin-babel": "https://github.com/systemjs/plugin-babel.git#^0.0.10",
+    "babel-plugin-transform-decorators-legacy": "https://github.com/loganfsmyth/babel-plugin-transform-decorators-legacy.git",
     "jquery": "~2.2.2",
     "angular": "~1.4.8",
     "angular-animate": "~1.4.8",
@@ -29,11 +34,8 @@
     "angular-touch": "~1.4.8",
     "globalize": "~0.1.1",
     "lodash": "~2.4.2",
-    "requirejs": "~2.2.0",
-    "requirejs-text": "~2.0.14",
     "tv4": "~1.1.12",
     "jgrowl": "~1.4.3",
-    "require-css": "~0.1.8",
     "uri-templates": "~0.1.9"
   },
   "devDependencies": {

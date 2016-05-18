@@ -19,7 +19,7 @@ define([
     '{w20-core}/modules/ui',
 
     '{jgrowl}/jquery.jgrowl',
-    '[css]!{jgrowl}/jquery.jgrowl'
+    '[css]!{jgrowl}/jquery.jgrowl.css'
 ], function (require, _module, $, _, angular) {
     'use strict';
 

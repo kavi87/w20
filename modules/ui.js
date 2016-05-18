@@ -14,8 +14,8 @@ define([
     '{lodash}/lodash',
     '{angular}/angular',
 
-    '[optional]![text]!{css-framework}/templates/error-report.html',
-    '[optional]!{css-framework}/modules/css-framework',
+    '[text]!{css-framework}/templates/error-report.html',
+    '{css-framework}/modules/css-framework',
 
     '{w20-core}/modules/env',
     '{w20-core}/modules/culture',
@@ -461,9 +461,9 @@ define([
                     return null;
                 }
                 return _.sortBy(_.compact(_.filter(_.values(parentMenuTree),
-                        function (elt) {
-                            return _.isArray(elt);
-                        }).concat(_.pluck(_.compact(parentMenuTree), 'route'))),
+                    function (elt) {
+                        return _.isArray(elt);
+                    }).concat(_.pluck(_.compact(parentMenuTree), 'route'))),
                     function (elt) {
                         return typeof elt.categoryPosition !== 'undefined' ? elt.categoryPosition : (typeof elt.sortKey !== 'undefined' ? elt.sortKey : elt);
                     });
