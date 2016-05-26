@@ -17,6 +17,28 @@
         throw new Error('SystemJS has not been loaded');
     }
 
+    // Cross-browser log function
+    {
+        let method;
+        let methods = [
+            'assert', 'clear', 'count', 'debug', 'dir', 'dirxml', 'error',
+            'exception', 'group', 'groupCollapsed', 'groupEnd', 'info', 'log',
+            'markTimeline', 'profile', 'profileEnd', 'table', 'time', 'timeEnd',
+            'timeStamp', 'trace', 'warn'
+        ];
+        let length = methods.length;
+        let console = (window.console = window.console || {});
+
+        while (length--) {
+            method = methods[length];
+
+            if (!console[method]) {
+                console[method] = function noop () {
+                };
+            }
+        }
+    }
+
     window.define = SystemJS.amdDefine;
     window.require = window.requirejs = SystemJS.amdRequire;
 
@@ -34,6 +56,8 @@
         pluginFirst: true
     });
 
-    SystemJS.import('bower_components/w20/modules/loader/main.js');
+    SystemJS.import('bower_components/w20/modules/loader/w20').catch(function(e) {
+        console.error(e && e.stack || e)}
+    );
 
 })(window, window.SystemJS || undefined);
