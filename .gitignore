@@ -1,0 +1,20 @@
+# Eclipse
+.classpath
+.project
+.settings/
+
+# Intellij
+.idea/
+*.iml
+
+
+# NPM
+node_modules/
+npm-debug.log
+
+# Tests
+coverage/
+
+# Bower
+bower_components/
+

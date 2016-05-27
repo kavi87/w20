@@ -1,0 +1,69 @@
+{
+    "myProject/myProject.w20.json": {},
+
+    "bower_components/w20/w20-core.w20.json": {
+        "modules": {
+            "application": {
+                "id": "myProject",
+                "home": "/myProject/content",
+                "blank": "/blank",
+                "notFound": "/not-found",
+                "redirectAfterRouteError": "/error",
+                "defaultSandboxPermissions": "",
+                "defaultSandboxId": ""
+            },
+            "culture": {
+                "available": [
+                    "en",
+                    "fr"
+                ],
+                "default": "en",
+                "translationFallback": true
+            },
+            "env": {
+                "type": "test"
+            },
+            "security": {
+                "autoLogin": true,
+                "redirectAfterLogout": "/redirect/logout",
+                "redirectAfterLogin": "/redirect/login",
+                "persistentRestrictions": false
+            },
+            "utils": {},
+            "notifications": {
+                "disableNotifications": false,
+                "position": "bottom-right",
+                "limit": 10,
+                "options": {}
+            },
+            "ui": {
+                "expandedRouteCategories": []
+            }
+        }
+    },
+
+    "bower_components/w20-bootstrap-3/w20-bootstrap-3.w20.json": {},
+
+    "bower_components/w20-business-theme/w20-business-theme.w20.json": {
+        "modules": {
+            "main": {
+                "sidebar": {
+                    "show": false,
+                    "width": 270
+                },
+                "links": [
+                    {
+                        "label": "Link",
+                        "i18n": "custom.link.key",
+                        "href": "https://www.google.com",
+                        "target": "_blank",
+                        "security": ""
+                    }
+                ],
+                "hideConnectivity": false,
+                "hideCulture": false,
+                "hideSecurity": false
+            }
+        }
+    }
+}

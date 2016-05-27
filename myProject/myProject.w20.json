@@ -1,0 +1,35 @@
+{
+    "id": "myProject",
+    "name": "W20 myProject fragment",
+
+    "modules": {
+        "content": {
+            "path": "{myProject}/modules/content",
+            "autoload": true
+        },
+        "test": {
+            "path": "{myProject}/modules/test",
+            "autoload": true
+        },
+        "style": {
+            "path": "[css]!{myProject}/style/style.css",
+            "autoload": true
+        }
+    },
+
+    "i18n": {
+        "en": ["{myProject}/i18n/messages-en.json"],
+        "fr": ["{myProject}/i18n/messages-fr.json"]
+    },
+
+    "routes": {
+        "content":{
+            "templateUrl":"{myProject}/views/content.html",
+            "controller":"ContentController as $ctrl"
+        },
+        "test":{
+            "templateUrl":"{myProject}/views/test.html",
+            "controller":"TestController as $ctrl"
+        }
+    }
+}
