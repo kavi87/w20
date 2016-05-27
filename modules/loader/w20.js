@@ -6,36 +6,40 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
 
-function mergeObjects(target, source) {
-    Object.keys(source).forEach(p => {
-        try {
-            if (source[p].constructor === Object) {
-                target[p] = mergeObjects(target[p], source[p]);
-            } else if (Array.isArray(source[p]) && Array.isArray(target[p])) {
-                target[p] = target[p].concat(source[p]);
-            } else {
-                target[p] = source[p];
+function mergeObjects(...sources) {
+    let r = (prev, curr) => {
+        Object.keys(curr).forEach(p => {
+            try {
+                if (curr[p].constructor === Object) {
+                    prev[p] = r(prev[p], curr[p]);
+                } else if (Array.isArray(curr[p]) && Array.isArray(prev[p])) {
+                    prev[p] = prev[p].concat(curr[p]);
+                } else {
+                    prev[p] = curr[p];
+                }
+            } catch (e) {
+                prev[p] = curr[p];
             }
-        } catch (e) {
-            target[p] = source[p];
-        }
-    });
-    return target;
+        });
+        return prev;
+    }
+
+    return sources.reduce(r);
 }
 
 function replacePlaceholders(text, values, placeholderRegexp = new RegExp('\\${([\\w-]+)(:([^:}]*))?}', 'g') /* ${letname:defaultvalue} */) {
-    return text.replace(placeholderRegexp, (all, letname, secondpart, defaultvalue) => {
-        let replacement = (typeof values === 'function' ? values(letname, defaultvalue) : values[letname]);
+    return text.replace(placeholderRegexp, (all, varname, secondpart, defaultvalue) => {
+        const replacement = (typeof values === 'function' ? values(varname, defaultvalue) : values[varname]);
 
         if (typeof replacement === 'undefined' && typeof defaultvalue === 'undefined') {
-            throw new Error('unresolved letiable: ${' + letname + '}');
+            throw new Error('unresolved variable: ${' + varname + '}');
         }
 
         return replacement || defaultvalue || '';
     });
 }
 
-let formatJsonSchema = (() => {
+const formatJsonSchema = (() => {
     function shift(value, level) {
         let tabs = '';
         for (let i = 0; i < level; i++) {
@@ -48,14 +52,14 @@ let formatJsonSchema = (() => {
         let output = '';
 
         if (node.properties) {
-            let properties = node.properties;
+            const properties = node.properties;
             Object.keys(properties).forEach(property => {
-                output += shift(property + ' (' + properties[property].type + '): ' + properties[property].description + '\n', level);
+                output += shift(`${property} (${properties[property].type}): ${properties[property].description}\n`, level);
                 output += buildConfigurationDescription(properties[property], level + 1);
             });
         } else if (node.items) {
-            let items = node.items;
-            output += shift('Item type: ' + items.type + '\n', level);
+            const items = node.items;
+            output += shift(`Item type: ${items.type}\n`, level);
             output += buildConfigurationDescription(items, level + 1);
         }
 
@@ -63,20 +67,21 @@ let formatJsonSchema = (() => {
     }
 
     return jsonSchema => {
-        return jsonSchema.title + ':\n' + buildConfigurationDescription(jsonSchema, 1);
+        return `${jsonSchema.title}:\n${buildConfigurationDescription(jsonSchema, 1)}`;
     };
 })();
 
 function getCookie(name) {
-    let c = document.cookie, v = 0, cookies = {};
+    let c = document.cookie;
+    let v = 0;
+    const cookies = {};
     if (document.cookie.match(/^\s*\$Version=(?:"1"|1);\s*(.*)/)) {
         c = RegExp.$1;
         v = 1;
     }
     if (v === 0) {
         c.split(/[,;]/).map(cookie => {
-            let parts = cookie.split(/=/, 2),
-                name = decodeURIComponent(parts[0].replace(/^\s+/, ""));
+            const parts = cookie.split(/=/, 2), name = decodeURIComponent(parts[0].replace(/^\s+/, ""));
             cookies[name] = parts.length > 1 ? decodeURIComponent(parts[1].replace(/\s+$/, "")) : null;
         });
     } else {
@@ -88,24 +93,21 @@ function getCookie(name) {
 }
 
 function fetch(url) {
+    if (typeof url !== 'string') {
+        return new Promise.resolve(url);
+    }
     return new Promise((resolve, reject) => {
-
-        let xhr = new XMLHttpRequest(),
-            xsrfToken = getCookie('XSRF-TOKEN');
-
+        const xhr = new XMLHttpRequest(), xsrfToken = getCookie('XSRF-TOKEN');
         xhr.open('GET', url, true);
-
         // Allow overrides specified in config
         if ('withCredentials' in xhr) {
             xhr.withCredentials = w20Object.corsWithCredentials;
         }
-
         // Put the XSRF header if the token is available
         if (xsrfToken) {
             xhr.setRequestHeader("X-XSRF-TOKEN", xsrfToken);
         }
-
-        xhr.onreadystatechange = function () {
+        xhr.onreadystatechange = () => {
             let status, err;
             //Do not explicitly handle errors, those should be
             //visible via console output in the browser.
@@ -113,7 +115,7 @@ function fetch(url) {
                 status = xhr.status || 0;
                 if (status > 399 && status < 600) {
                     //An http 4xx or 5xx error. Signal an error.
-                    err = new Error(url + ' HTTP status: ' + status);
+                    err = new Error(`${url} HTTP status: ${status}`);
                     err.xhr = xhr;
                     reject(err);
                 } else {
@@ -125,161 +127,9 @@ function fetch(url) {
     });
 }
 
-function getContents(urls, callback, errback) {
-    errback = errback ? errback : e => {
-        throw e
-    };
-
-    // TODO polyfill Promise
-    if (urls instanceof Array) {
-        Promise.all(urls.map(fetch).map((promise, index) => promise.catch(e => errback(e, index)))).then(callback);
-    } else {
-        fetch(urls).then(result => callback(result, 0)).catch(err => errback(err, 0));
-    }
-}
-
-function formatError(arg) {
-    if (arg instanceof Error) {
-        if (arg.stack) {
-            arg = (arg.message && arg.stack.indexOf(arg.message) === -1) ? 'Error: ' + arg.message + '\n' + arg.stack : arg.stack;
-        } else if (arg.sourceURL) {
-            arg = arg.message + '\n' + arg.sourceURL + ':' + arg.line;
-        }
-    }
-    return arg;
-}
-
-let requireErrorHandler = (() => {
-    let originalHandler;
-
-    return {
-        setup: function () {
-            if (!originalHandler) {
-                this.originalHandler = require.onError;
-            }
-
-            require.onError = function (err) {
-                let info = {
-                    message: err.message,
-                    stack: err.stack,
-                    details: formatError(err),
-                    modules: err.requireModules
-                };
-
-                if (typeof err.requireType !== 'undefined') {
-                    info.type = err.requireType;
-                } else if (typeof err.xhr !== 'undefined' && err.xhr.status / 100 !== 2) {
-                    info.type = 'http';
-                    info.status = err.xhr.status;
-                    info.statusText = err.xhr.statusText;
-                    info.response = err.xhr.responseText;
-                } else {
-                    info.type = 'unknown';
-                }
-
-                report('error', 'A loading error occurred', info.details, true, info);
-            };
-        },
-
-        restore: function () {
-            require.onError = this.originalHandler;
-        },
-
-        disable: function () {
-            require.onError = function () {
-            };
-        }
-    };
-})();
-
-// TODO refactor too big
-let report = (() => {
-    let errorLevel = null;
-
-    return (type, message, detail, isFatal, info) => {
-        // Special case of reporting just an Error
-        if (type instanceof Error) {
-            report('error', type.message, function () {
-                if (typeof type.detail !== 'undefined') {
-                    return type.detail;
-                } else if (typeof type.stack === 'undefined') {
-                    return 'No detail.';
-                } else {
-                    return type.stack.replace(/^(?!at).*$/m, '').trim();
-                }
-            }, true, type.info); // Error objects are always fatal
-            return;
-        }
-
-        let constrainedType = {info: 'info', warn: 'warn', error: 'error'}[type] || 'error',
-            detailContent,
-            cloakElement = window.document.getElementById('w20-loading-cloak'),
-            computeLevel = function (newLevel) {
-                if (newLevel === 'info') {
-                    return;
-                }
-                if (newLevel === 'warn' && errorLevel === 'error') {
-                    return;
-                }
-
-                return newLevel;
-            };
-
-        if (typeof detail !== 'undefined') {
-            if (typeof detail === 'function') {
-                detailContent = detail().toString();
-            } else {
-                detailContent = detail.toString();
-            }
-        }
-
-        console[constrainedType](message + (typeof detailContent !== 'undefined' ? '\n' + detailContent : ''));
-
-        if (cloakElement !== null) {
-            if (errorLevel === null) {
-                cloakElement.innerHTML = '<div id="w20-error-content" class="failure failure-' + constrainedType + '"><span class="title">Error report</span><div id="w20-error-detail" class="detail"><ul id="w20-error-detail-list"></ul></span></div><button class="retry" onclick="window.document.location.reload()">Retry</button></div></div>';
-                errorLevel = constrainedType;
-            } else {
-                errorLevel = computeLevel(constrainedType);
-                window.document.getElementById('w20-error-content').setAttribute('class', 'failure failure-' + errorLevel);
-            }
-
-            let detailListElement = window.document.getElementById('w20-error-detail-list'),
-                detailElement = window.document.getElementById('w20-error-detail');
-            detailListElement.innerHTML = detailListElement.innerHTML + '<li>[' + constrainedType.substring(0, 1).toUpperCase() + '] ' + message + (typeof detailContent !== 'undefined' ? ' <blockquote>' + detailContent.replace(/\n/g, '<br/>').replace(/\t/g, '&emsp;&emsp;') + '</blockquote>' : '') + '</li>';
-            detailElement.scrollTop = detailElement.scrollHeight;
-        }
-
-        if (isFatal) {
-            if (typeof info !== 'undefined') {
-                let errorpage = info.path;
-                if (typeof errorpage === 'undefined') {
-                    errorpage = 'errors/' + (info.type || 'unknown') + (info.type === 'http' ? '-' + (info.status || 'unknown') : '') + '.html';
-                }
-
-                getContents(errorpage, function (errorContent) {
-                    let errorDocument = window.document.open('text/html', 'replace');
-                    try {
-                        errorDocument.write(replacePlaceholders(errorContent, info));
-                    } catch (e) {
-                        errorDocument.write(errorContent);
-                    }
-                    errorDocument.close();
-                }, function () {
-                    // Do nothing here (error has already been shown)
-                });
-            }
-            report('error', 'A fatal error occurred, aborting startup');
-            report('info', 'If this is the first time you see this error, clear your browser cache before retrying');
-            requireErrorHandler.disable(); // to avoid requirejs error handler re-catching this error
-            throw new Error('abort');
-        }
-    };
-})();
-
 function getDocumentConfiguration(htmlElt = window.document.getElementsByTagName('html')) {
     let attr;
-    let documentConfiguration = { requireConfig: {} };
+    const documentConfiguration = {requireConfig: {}};
 
     if (htmlElt.length > 0) {
         if ((attr = htmlElt[0].getAttribute('data-w20-app')) !== null) {
@@ -294,7 +144,7 @@ function getDocumentConfiguration(htmlElt = window.document.getElementsByTagName
         }
 
         if ((attr = htmlElt[0].getAttribute('data-w20-timeout')) !== null) {
-            let timeout = parseInt(attr);
+            const timeout = parseInt(attr);
 
             if (isNaN(timeout)) {
                 report('warn', 'unable to parse data-w20-timeout value, using default timeout');
@@ -315,104 +165,245 @@ function getDocumentConfiguration(htmlElt = window.document.getElementsByTagName
     return documentConfiguration;
 }
 
-function createCacheBustingExtension (ext) {
-    return '__v=' + ext;
+function createCacheBustingExtension(ext) {
+    return `__v=${ext}`;
 }
 
-/////////////////////////////////////////////////////////////////////
-// CONFIGURATION FUNCTIONS                                         //
-/////////////////////////////////////////////////////////////////////
+function formatError(arg) {
+    if (arg instanceof Error) {
+        if (arg.stack) {
+            arg = (arg.message && arg.stack.indexOf(arg.message) === -1) ? `Error: ${arg.message}\n${arg.stack}` : arg.stack;
+        } else if (arg.sourceURL) {
+            arg = `${arg.message}\n${arg.sourceURL}:${arg.line}`;
+        }
+    }
+    return arg;
+}
 
-function loadConfiguration (callback) {
+// TODO no error handler in systemjs
+const requireErrorHandler = (() => {
+    let originalHandler;
 
-    function initialize (config) {
-        let fragmentsToLoad = [],
-            fragmentConfigs = [],
-            loadedFragments = {},
-            modulesToLoad = [],
-            loadedConfiguration;
+    return {
+        setup() {
+            if (!originalHandler) {
+                this.originalHandler = require.onError;
+            }
+            require.onError = err => {
+                const info = {
+                    message: err.message,
+                    stack: err.stack,
+                    details: formatError(err),
+                    modules: err.requireModules
+                };
 
+                if (typeof err.requireType !== 'undefined') {
+                    info.type = err.requireType;
+                } else if (typeof err.xhr !== 'undefined' && err.xhr.status / 100 !== 2) {
+                    info.type = 'http';
+                    info.status = err.xhr.status;
+                    info.statusText = err.xhr.statusText;
+                    info.response = err.xhr.responseText;
+                } else {
+                    info.type = 'unknown';
+                }
+                report('error', 'A loading error occurred', info.details, true, info);
+            };
+        },
+
+        restore() {
+            require.onError = this.originalHandler;
+        },
+
+        disable() {
+            require.onError = () => {
+            };
+        }
+    };
+})();
+
+// TODO refactor too big
+var report = (() => {
+    let errorLevel = null;
+
+    return (type, message, detail, isFatal, info) => {
+        // Special case of reporting just an Error
+        if (type instanceof Error) {
+            report('error', type.message, () => {
+                if (typeof type.detail !== 'undefined') {
+                    return type.detail;
+                } else if (typeof type.stack === 'undefined') {
+                    return 'No detail.';
+                } else {
+                    return type.stack.replace(/^(?!at).*$/m, '').trim();
+                }
+            }, true, type.info); // Error objects are always fatal
+            return;
+        }
+
+        const constrainedType = {info: 'info', warn: 'warn', error: 'error'}[type] || 'error';
+        let detailContent;
+        const cloakElement = window.document.getElementById('w20-loading-cloak');
+
+        const computeLevel = newLevel => {
+            if (newLevel === 'info') {
+                return;
+            }
+            if (newLevel === 'warn' && errorLevel === 'error') {
+                return;
+            }
+
+            return newLevel;
+        };
+
+        if (typeof detail !== 'undefined') {
+            if (typeof detail === 'function') {
+                detailContent = detail().toString();
+            } else {
+                detailContent = detail.toString();
+            }
+        }
+
+        console[constrainedType](message + (typeof detailContent !== 'undefined' ? '\n' + detailContent : ''));
+
+        if (cloakElement !== null) {
+            if (errorLevel === null) {
+                cloakElement.innerHTML = `<div id="w20-error-content" class="failure failure-${constrainedType}"><span class="title">Error report</span><div id="w20-error-detail" class="detail"><ul id="w20-error-detail-list"></ul></span></div><button class="retry" onclick="window.document.location.reload()">Retry</button></div></div>`;
+                errorLevel = constrainedType;
+            } else {
+                errorLevel = computeLevel(constrainedType);
+                window.document.getElementById('w20-error-content').setAttribute('class', `failure failure-${errorLevel}`);
+            }
+
+            const detailListElement = window.document.getElementById('w20-error-detail-list'), detailElement = window.document.getElementById('w20-error-detail');
+            detailListElement.innerHTML = `${detailListElement.innerHTML}<li>[${constrainedType.substring(0, 1).toUpperCase()}] ${message}${typeof detailContent !== 'undefined' ? ' <blockquote>' + detailContent.replace(/\n/g, '<br/>').replace(/\t/g, '&emsp;&emsp;') + '</blockquote>' : ''}</li>`;
+            detailElement.scrollTop = detailElement.scrollHeight;
+        }
+
+        if (isFatal) {
+            if (typeof info !== 'undefined') {
+                let errorpage = info.path;
+                if (typeof errorpage === 'undefined') {
+                    errorpage = `errors/${info.type || 'unknown'}${info.type === 'http' ? '-' + (info.status || 'unknown') : ''}.html`;
+                }
+
+                fetch(errorpage).then(errorContent => {
+                    const errorDocument = window.document.open('text/html', 'replace');
+                    try {
+                        errorDocument.write(replacePlaceholders(errorContent, info));
+                    } catch (e) {
+                        errorDocument.write(errorContent);
+                    }
+                    errorDocument.close();
+                });
+            }
+            report('error', 'A fatal error occurred, aborting startup');
+            report('info', 'If this is the first time you see this error, clear your browser cache before retrying');
+            requireErrorHandler.disable(); // to avoid requirejs error handler re-catching this error
+            throw new Error('abort');
+        }
+    };
+})();
+
+function loadConfiguration(configuration, callback) {
+
+    function parseConfiguration(config) {
         if (typeof config === 'object') {
-            loadedConfiguration = config;
+            return config;
         } else if (typeof config === 'string') {
             try {
-                loadedConfiguration = JSON.parse(replacePlaceholders(config, function (value, defaultValue) {
-                    let result = window.localStorage.getItem(value);
-
-                    if (result === null) {
-                        if (typeof defaultValue === 'undefined') {
-                            return undefined;
-                        } else {
-                            window.localStorage.setItem(value, defaultValue);
-                            return defaultValue;
-                        }
-                    }
-                    return result;
-                }));
+                return JSON.parse(replacePlaceholders(config, cacheToLocalStorage));
             } catch (e) {
-                report('error', 'Error when parsing configuration', function () {
-                    return formatError(e);
-                }, true);
+                report('error', 'Error when parsing configuration', () => formatError(e), true);
             }
         } else {
             report('error', 'W20 configuration must be be defined either as a "configuration" object in the "w20" global object or as an URL to fetch in the "data-w20-app" attribute of the "html" element', undefined, true);
         }
+    }
 
-        for (let fragment in loadedConfiguration) {
-            if (loadedConfiguration.hasOwnProperty(fragment)) {
-                let fragmentLoadedConfiguration = loadedConfiguration[fragment];
+    function cacheToLocalStorage(value, defaultValue) {
+        const result = window.localStorage.getItem(value);
 
-                if (typeof fragmentLoadedConfiguration !== 'object') {
-                    report('error', 'Configuration of fragment ' + fragment + ' is not of object type', undefined, true);
-                }
-
-                if (fragment === '') {
-                    // anonymous inline fragment
-                    loadedFragments[''] = {
-                        definition: mergeObjects(fragmentLoadedConfiguration, {id: ''}),
-                        configuration: {}
-                    };
-                } else {
-                    // named external fragment
-                    if (fragmentLoadedConfiguration.ignore) {
-                        console.warn("Ignored fragment " + fragment);
-                    } else {
-                        fragmentsToLoad.push(fragment);
-                        fragmentConfigs.push(fragmentLoadedConfiguration);
-                    }
-                }
+        if (result === null) {
+            if (typeof defaultValue === 'undefined') {
+                return undefined;
+            } else {
+                window.localStorage.setItem(value, defaultValue);
+                return defaultValue;
             }
         }
+        return result;
+    }
 
-        // Load all fragments
-        getContents(fragmentsToLoad, function (manifests) {
+    function buildAnonymousFragment(definition) {
+        return {
+            definition: mergeObjects(definition, {id: ''}),
+            configuration: {}
+        };
+    }
+
+    function processConfiguration(configuration) {
+        let fragmentsToLoad = [];
+        let loadedFragments = {};
+
+        Object.keys(configuration).forEach(fragmentPath => {
+
+            if (typeof configuration[fragmentPath] !== 'object') {
+                report('error', `Configuration of fragment ${fragmentPath === '' ? 'anonymous' : fragmentPath} is not of type object`, undefined, true);
+            }
+
+            if (configuration[fragmentPath].ignore) {
+                console.warn(`Ignored fragment ${fragmentPath === '' ? 'anonymous' : fragmentPath}`);
+            } else {
+                if (fragmentPath === '') {
+                    // anonymous inline fragment
+                    loadedFragments[''] = buildAnonymousFragment(configuration[fragmentPath]);
+                } else {
+                    // named external fragment
+                    fragmentsToLoad.push(fragmentPath);
+                }
+            }
+        });
+
+        return { fragmentsToLoad, loadedFragments };
+    }
+
+    function initialize (configuration) {
+        const { fragmentsToLoad, loadedFragments } = processConfiguration(configuration);
+        const modulesToLoad = [];
+
+        Promise.all(fragmentsToLoad.map(fragmentToLoad => fetch(fragmentToLoad).catch(error => {
+            if (configuration[fragmentToLoad].optional) {
+                report('warn', `Could not load optional fragment ${fragmentToLoad}`);
+            } else {
+                report('error', `Could not load fragment ${fragmentToLoad}`, undefined, true);
+            }
+        }))).then(manifests => {
             let hasErrors = false;
 
             for (let i = 0; i < manifests.length; i++) {
-                let __fragmentUrl = fragmentsToLoad[i],
-                    __fragmentRoot = __fragmentUrl.substring(0, __fragmentUrl.lastIndexOf('/')),
-                    __fragmentConfig = fragmentConfigs[i],
-                    __fragmentDefinition;
+                const __fragmentUrl = fragmentsToLoad[i];
+                const __fragmentRoot = __fragmentUrl.substring(0, __fragmentUrl.lastIndexOf('/'));
+                const __fragmentConfig = configuration[fragmentsToLoad[i]];
+                let __fragmentDefinition;
 
                 try {
-                    __fragmentDefinition = JSON.parse(replacePlaceholders(manifests[i], mergeObjects(__fragmentConfig.lets || {}, {fragmentRoot: __fragmentRoot})));
+                    __fragmentDefinition = JSON.parse(replacePlaceholders(manifests[i], mergeObjects(__fragmentConfig.vars || {}, {fragmentRoot: __fragmentRoot})));
                 } catch (e) {
                     // jshint loopfunc:true
-                    report('error', 'invalid fragment manifest at ' + __fragmentUrl, function () {
-                        return formatError(e);
-                    });
+                    report('error', `invalid fragment manifest at ${__fragmentUrl}`, () => formatError(e));
                     hasErrors = true;
                     continue;
                 }
 
                 if (typeof __fragmentDefinition.id !== 'string' || __fragmentDefinition.id === '') {
-                    report('error', 'invalid or missing fragment id at ' + __fragmentUrl);
+                    report('error', `invalid or missing fragment id at ${__fragmentUrl}`);
                     hasErrors = true;
                     continue;
                 }
 
                 if (__fragmentDefinition.id in loadedFragments) {
-                    report('error', 'fragment identifier conflict: ' + __fragmentDefinition.id);
+                    report('error', `fragment identifier conflict: ${__fragmentDefinition.id}`);
                     hasErrors = true;
                     continue;
                 }
@@ -425,12 +416,9 @@ function loadConfiguration (callback) {
                 };
             }
 
-            for (let loadedFragment in loadedFragments) {
+            for (const loadedFragment in loadedFragments) {
                 if (loadedFragments.hasOwnProperty(loadedFragment)) {
-                    let fragmentDefinition = loadedFragments[loadedFragment].definition,
-                        fragmentConfiguration = loadedFragments[loadedFragment].configuration,
-                        fragmentUrl = loadedFragments[loadedFragment].url,
-                        fragmentRoot = loadedFragments[loadedFragment].root;
+                    const fragmentDefinition = loadedFragments[loadedFragment].definition, fragmentConfiguration = loadedFragments[loadedFragment].configuration, fragmentUrl = loadedFragments[loadedFragment].url, fragmentRoot = loadedFragments[loadedFragment].root;
 
                     allModules[loadedFragment] = {};
 
@@ -438,27 +426,26 @@ function loadConfiguration (callback) {
                         mergeObjects(w20Object.requireConfig, fragmentDefinition.requireConfig || {});
                     }
 
-                    w20Object.requireConfig.paths['{' + fragmentDefinition.id + '}/*'] = (fragmentRoot || '.') + '/*';
+                    w20Object.requireConfig.paths[`{${fragmentDefinition.id}}/*`] = `${fragmentRoot || '.'}/*`;
 
-                    let declaredModules = fragmentDefinition.modules || {},
-                        configuredModules = fragmentConfiguration.modules || {};
+                    const declaredModules = fragmentDefinition.modules || {}, configuredModules = fragmentConfiguration.modules || {};
 
                     // Check for non-existent configured modules
-                    for (let configuredModule in configuredModules) {
+                    for (const configuredModule in configuredModules) {
                         if (configuredModules.hasOwnProperty(configuredModule)) {
                             if (typeof declaredModules[configuredModule] === 'undefined') {
-                                report('error', 'module ' + configuredModule + ' has been configured but doesn\'t exist in fragment ' + fragmentDefinition.id);
+                                report('error', `module ${configuredModule} has been configured but doesn't exist in fragment ${fragmentDefinition.id}`);
                                 hasErrors = true;
                             }
                         }
                     }
 
-                    for (let module in declaredModules) {
+                    for (const module in declaredModules) {
                         if (declaredModules.hasOwnProperty(module)) {
-                            let moduleDefinition = declaredModules[module],
-                                moduleConfiguration = configuredModules[module],
-                                modulePath,
-                                configSchema;
+                            const moduleDefinition = declaredModules[module];
+                            const moduleConfiguration = configuredModules[module];
+                            let modulePath;
+                            let configSchema;
 
                             // Module definition shortcut without configuration
                             if (typeof moduleDefinition === 'string') {
@@ -485,7 +472,7 @@ function loadConfiguration (callback) {
                                     configSchema = undefined;
                                 }
                             } else {
-                                report('error', 'module ' + module + ' has an invalid definition in fragment: ' + fragmentDefinition.id, undefined, true);
+                                report('error', `module ${module} has an invalid definition in fragment: ${fragmentDefinition.id}`, undefined, true);
                             }
 
                             // Load module if necessary
@@ -503,7 +490,7 @@ function loadConfiguration (callback) {
                         mergeObjects(w20Object.requireConfig.bundles, fragmentDefinition.bundles);
                     }
 
-                    console.log('Fragment ' + (fragmentDefinition.name || '[inline]') + ' configured' + (fragmentUrl ? ' from ' + fragmentUrl : ''));
+                    console.log(`Fragment ${fragmentDefinition.name || '[inline]'} configured${fragmentUrl ? ' from ' + fragmentUrl : ''}`);
                 }
             }
 
@@ -511,51 +498,35 @@ function loadConfiguration (callback) {
                 report('error', 'Configuration error(s) occurred, cannot continue', undefined, true);
             }
 
-            define('w20', function () {
-                return w20Object;
-            });
+            define('w20', () => w20Object);
 
             SystemJS.config(w20Object.requireConfig);
 
-            w20Object.configuration = loadedConfiguration;
+            w20Object.configuration = configuration;
             w20Object.fragments = loadedFragments;
 
             callback(w20Object, modulesToLoad);
-        }, function (error, index) {
-            if (fragmentConfigs[index].optional) {
-                report('warn', "Could not load optional fragment " + fragmentsToLoad[index]);
-            } else {
-                report('error', 'Could not load fragment ' + fragmentsToLoad[index], undefined, true);
-            }
         });
     }
 
-    if (typeof w20Object.configuration === 'string') {
-        getContents(w20Object.configuration, function (configText) {
-            initialize(configText);
-        }, function () {
-            report('error', 'Could not fetch W20 configuration from ' + w20Object.configuration, undefined, true);
-        });
-    } else {
-        initialize(w20Object.configuration);
-    }
-
+    fetch(configuration)
+        .catch(() => {
+            report('error', `Could not fetch W20 configuration from ${w20Object.configuration}`, undefined, true);
+        })
+        .then(parseConfiguration)
+        .then(initialize);
 }
 
 /////////////////////////////////////////////////////////////////////
 // APPLICATION STARTUP FUNCTION                                    //
 /////////////////////////////////////////////////////////////////////
 
-let requireApplication = function (w20, modulesToRequire, callback) {
-    console.log('Requiring modules ' + modulesToRequire);
+const requireApplication = (w20, modulesToRequire, callback) => {
+    console.log(`Requiring modules ${modulesToRequire}`);
 
-    require(['{tv4}/tv4'].concat(modulesToRequire), function (tv4) {
-        let definedModules = SystemJS._loader.modules,
-            modulesRequired = Object.keys(definedModules).map(function (elt) {
-                return definedModules[elt].module;
-            }).filter(function (elt) {
-                return elt !== undefined;
-            });
+    require(['{tv4}/tv4'].concat(modulesToRequire), tv4 => {
+        const definedModules = SystemJS._loader.modules,
+            modulesRequired = Object.keys(definedModules).map(elt => definedModules[elt].module).filter(elt => elt !== undefined);
 
         modulesRequired.forEach(module => {
             if (module.init) {
@@ -566,28 +537,25 @@ let requireApplication = function (w20, modulesToRequire, callback) {
         // Validate configuration now that the validator (tv4) is loaded
         console.log('Validating modules configuration');
 
-        for (let fragmentName in allModules) {
+        for (const fragmentName in allModules) {
             if (allModules.hasOwnProperty(fragmentName)) {
-                for (let moduleName in allModules[fragmentName]) {
+                for (const moduleName in allModules[fragmentName]) {
                     if (allModules[fragmentName].hasOwnProperty(moduleName)) {
-                        let validationData = allModules[fragmentName][moduleName];
+                        const validationData = allModules[fragmentName][moduleName];
 
                         if (typeof validationData.values !== 'undefined' && typeof validationData.schema !== 'undefined') {
-                            let validationResult = tv4.validateMultiple(validationData.values, validationData.schema);
+                            const validationResult = tv4.validateMultiple(validationData.values, validationData.schema);
 
                             if (!validationResult.valid) {
                                 // jshint loopfunc:true
-                                report('error', 'Configuration of module ' + moduleName + ' in fragment ' + fragmentName + ' is not valid', function () {
+                                report('error', `Configuration of module ${moduleName} in fragment ${fragmentName} is not valid`, () => {
                                     let result = '';
                                     for (let i = 0; i < validationResult.errors.length; i++) {
-                                        let currentError = validationResult.errors[i];
-                                        result += (currentError.dataPath) +
-                                            ': ' +
-                                            currentError.message +
-                                            '\n';
+                                        const currentError = validationResult.errors[i];
+                                        result += `${currentError.dataPath}: ${currentError.message}\n`;
                                     }
 
-                                    result += '\n' + formatJsonSchema(validationData.schema);
+                                    result += `\n${formatJsonSchema(validationData.schema)}`;
 
                                     return result;
                                 }, true);
@@ -599,14 +567,14 @@ let requireApplication = function (w20, modulesToRequire, callback) {
         }
 
         callback(modulesToRequire, modulesRequired);
-    }, function (error) {
+    }, error => {
         console.trace();
         console.log(error);
     });
 };
 
 
-let startApplication = function (w20, modulesToRequire, modules, callback) {
+const startApplication = (w20, modulesToRequire, modules, callback) => {
     let currentTimeout = null,
         preModules = {},
         runModules = {};
@@ -614,13 +582,13 @@ let startApplication = function (w20, modulesToRequire, modules, callback) {
     // Push dummy module on the list to ensure the full lifecycle chain is called
     modules.push({
         lifecycle: {
-            pre: function (modules, fragments, callback) {
+            pre(modules, fragments, callback) {
                 callback();
             },
-            run: function (modules, fragments, callback) {
+            run(modules, fragments, callback) {
                 callback();
             },
-            post: function (modules, fragments, callback) {
+            post(modules, fragments, callback) {
                 callback();
             }
         }
@@ -652,15 +620,15 @@ let startApplication = function (w20, modulesToRequire, modules, callback) {
         }
     }
 
-    currentTimeout = window.setTimeout(function () {
-        report('error', 'Timeout during preparation phase !', function () {
+    currentTimeout = window.setTimeout(() => {
+        report('error', 'Timeout during preparation phase !', () => {
             let list = '';
-            for (let theModule in preModules) {
+            for (const theModule in preModules) {
                 if (preModules.hasOwnProperty(theModule)) {
-                    list += '\t' + theModule + '\n';
+                    list += `\t${theModule}\n`;
                 }
             }
-            return 'Modules not prepared:\n' + list.toString();
+            return `Modules not prepared:\n${list.toString()}`;
         });
     }, w20Object.requireConfig.waitSeconds * 1000);
 
@@ -668,10 +636,10 @@ let startApplication = function (w20, modulesToRequire, modules, callback) {
         for (let i = 0; i < modules.length; i++) {
             if (modules[i] && modules[i].lifecycle && typeof modules[i].lifecycle.pre === 'function') {
                 // jshint loopfunc:true
-                modules[i].lifecycle.pre(modules, w20.fragments, function (preModule) {
+                modules[i].lifecycle.pre(modules, w20.fragments, preModule => {
                     preModuleCount = preModuleCount - 1;
                     if (typeof preModule !== 'undefined') {
-                        console.log(preModule.id + ' module pre phase completed');
+                        console.log(`${preModule.id} module pre phase completed`);
                         delete preModules[preModule.id];
                     }
 
@@ -679,15 +647,15 @@ let startApplication = function (w20, modulesToRequire, modules, callback) {
                         window.clearTimeout(currentTimeout);
                         preModules = undefined;
 
-                        currentTimeout = window.setTimeout(function () {
-                            report('error', 'Timeout during running phase !', function () {
+                        currentTimeout = window.setTimeout(() => {
+                            report('error', 'Timeout during running phase !', () => {
                                 let list = '';
-                                for (let theModule in runModules) {
+                                for (const theModule in runModules) {
                                     if (runModules.hasOwnProperty(theModule)) {
-                                        list += '<li>' + theModule + '</li>';
+                                        list += `<li>${theModule}</li>`;
                                     }
                                 }
-                                return 'Modules not runned:<br/><ul>' + list.toString() + '</ul>';
+                                return `Modules not runned:<br/><ul>${list.toString()}</ul>`;
                             });
                         }, w20Object.requireConfig.waitSeconds * 1000);
 
@@ -695,10 +663,10 @@ let startApplication = function (w20, modulesToRequire, modules, callback) {
                             for (let j = 0; j < modules.length; j++) {
                                 if (modules[j] && modules[j].lifecycle && typeof modules[j].lifecycle.run === 'function') {
                                     // jshint loopfunc:true
-                                    modules[j].lifecycle.run(modules, w20.fragments, function (runModule) {
+                                    modules[j].lifecycle.run(modules, w20.fragments, runModule => {
                                         runModuleCount = runModuleCount - 1;
                                         if (typeof runModule !== 'undefined') {
-                                            console.log(runModule.id + ' module run phase completed');
+                                            console.log(`${runModule.id} module run phase completed`);
                                             delete runModules[runModule.id];
                                         }
 
@@ -711,10 +679,10 @@ let startApplication = function (w20, modulesToRequire, modules, callback) {
                                             for (let k = 0; k < modules.length; k++) {
                                                 if (modules[k] && modules[k].lifecycle && typeof modules[k].lifecycle.post === 'function') {
                                                     // jshint loopfunc:true
-                                                    modules[k].lifecycle.post(modules, w20.fragments, function (postModule) {
+                                                    modules[k].lifecycle.post(modules, w20.fragments, postModule => {
                                                         postModuleCount = postModuleCount - 1;
                                                         if (typeof postModule !== 'undefined') {
-                                                            console.log(postModule.id + ' module post phase completed');
+                                                            console.log(`${postModule.id} module post phase completed`);
                                                         }
                                                     }, report);
                                                 }
@@ -739,42 +707,39 @@ let startApplication = function (w20, modulesToRequire, modules, callback) {
 // STARTUP SEQUENCE                                                //
 /////////////////////////////////////////////////////////////////////
 
-let defaultConfiguration = {
+const defaultConfiguration = {
     console: window.console,
+    appVersion: '0.1.0',
+    ready: false,
+    corsWithCredentials: false,
+    useBundles: false,
     requireConfig: {
         baseUrl: '.',
-        modulesConfig: {
-            '{requirejs-text}/text': {
-                onXhr: function (xhr) {
-                    let xsrfToken = getCookie('XSRF-TOKEN');
-
-                    if ('withCredentials' in xhr) {
-                        xhr.withCredentials = this.corsWithCredentials;
-                    }
-
-                    if (xsrfToken) {
-                        xhr.setRequestHeader("X-XSRF-TOKEN", xsrfToken);
-                    }
-                },
-
-                useXhr: () => true
-            }
-        },
         paths: {},
         map: {},
         bundles: {},
         waitSeconds: 30,
-        urlArgs: createCacheBustingExtension(this.appVersion)
+        urlArgs: createCacheBustingExtension(this.appVersion),
+        modulesConfig: {
+            '{requirejs-text}/text': {
+                onXhr(xhr) {
+                    const xsrfToken = getCookie('XSRF-TOKEN');
+                    if ('withCredentials' in xhr) {
+                        xhr.withCredentials = this.corsWithCredentials;
+                    }
+                    if (xsrfToken) {
+                        xhr.setRequestHeader("X-XSRF-TOKEN", xsrfToken);
+                    }
+                },
+                useXhr: () => true
+            }
+        },
     },
-    appVersion: '0.1.0',
-    ready: false,
-    corsWithCredentials: false,
-    useBundles: false
 };
 
-let allModules = {};
+var allModules = {};
 // TODO insert hook here to allow initializing window.w20
-let w20Object = mergeObjects(mergeObjects(defaultConfiguration, getDocumentConfiguration()), window.w20 || {});
+var w20Object = mergeObjects(defaultConfiguration, getDocumentConfiguration(), window.w20 || {});
 
 SystemJS.config(w20Object.requireConfig);
 
@@ -783,7 +748,8 @@ SystemJS.config(w20Object.requireConfig);
 console.info('W20 application starting up');
 console.time('Startup process duration');
 console.time('Configuration load duration');
-loadConfiguration(function (w20, modules) {
+
+loadConfiguration(w20Object.configuration, (w20, modules) => {
     console.timeEnd('Configuration load duration');
 
     window.w20 = w20Object;
@@ -791,11 +757,11 @@ loadConfiguration(function (w20, modules) {
     modules = modules.concat(w20Object.deps || []);
 
     console.time('Modules require duration');
-    requireApplication(w20, modules, w20Object.callback || function (modulesToRequire, modulesRequired) {
+    requireApplication(w20, modules, w20Object.callback || ((modulesToRequire, modulesRequired) => {
             console.timeEnd('Modules require duration');
 
             console.time('Application initialization duration');
-            startApplication(w20, modulesToRequire, modulesRequired, function () {
+            startApplication(w20, modulesToRequire, modulesRequired, () => {
                 console.timeEnd('Application initialization duration');
 
                 //requireErrorHandler.restore(w20);
@@ -809,7 +775,7 @@ loadConfiguration(function (w20, modules) {
                 console.info('W20 application ready');
                 console.timeEnd('Startup process duration');
             });
-        });
+        }));
 });
 
 export { w20Object };
